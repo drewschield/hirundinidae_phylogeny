@@ -556,3 +556,304 @@ phyluce_align_get_align_summary_data --alignments ./4-datasets/all/mafft-gblocks
 ```
 phyluce_align_remove_locus_name_from_files --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete --output ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --cores 24 --log-path ./temp_log
 ```
+
+## Part 5 - Format data matrices for analysis
+
+We've aligned UCE loci using mafft and Gblocks and formatted nexus alignments for analysis.
+
+Now we need to format input datasets for partitioning and analysis in RAxML, SVDquartets, Astral, etc.
+
+------------------------------------------------------------------------------------------
+### 1. Format dataset for all samples for pilot analyses
+
+We'll use the results from this dataset to determine if any samples with low quality input data need to be removed from downstream analysis.
+
+#### Format UCE locus dataset with 95% samples per locus
+
+Run `phyluce_align_get_only_loci_with_min_taxa` to extract 95% complete matrix.
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+conda activate phyluce
+phyluce_align_get_only_loci_with_min_taxa --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --output ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p --taxa 122 --percent 0.95 --cores 24 --log-path ./temp_log
+```
+
+This retains 3442 of 5026 total alignments with >= 95% of taxa (n = 122 taxa).
+
+------------------------------------------------------------------------------------------
+### 2. Format revised dataset 1, with highly problematic skin samples removed
+
+Following preliminary analysis, it was clear that 4 samples should be removed from analysis (see 'README-7a-RAxML-concatenated-analysis-pilot-notes.docx').
+
+Here, we'll remove those samples from the alignments and generate a 95% complete data matrix for downstream analysis.
+
+We can effectively consider this the 'full' dataset moving forward.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce/4-datasets/
+mkdir all-rev1
+cd ..
+```
+
+#### Extract alignments without excluded samples
+
+Extract alignments:
+```
+phyluce_align_extract_taxa_from_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --output ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean --output-format nexus --exclude Progne_cryptoleuca_Cuba_LSUMZ_142940 Progne_cryptoleuca_Cuba_LSUMZ_142944 Riparia_congica_Congo_FMNH_213543 Progne_modesta_Ecuador_MVZ_130129 --cores 8 --log-path ./temp_log
+```
+
+Verify that the excluded taxa are not in the resulting alignments:
+```
+for i in ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean/*.nexus; do grep 'Progne_cryptoleuca_Cuba_LSUMZ_142940' $i; done
+for i in ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean/*.nexus; do grep 'Progne_cryptoleuca_Cuba_LSUMZ_142944' $i; done
+for i in ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean/*.nexus; do grep 'Riparia_congica_Congo_FMNH_213543' $i; done
+for i in ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean/*.nexus; do grep 'Progne_modesta_Ecuador_MVZ_130129' $i; done
+```
+
+#### Format UCE locus dataset with 95% samples per locus
+
+```
+phyluce_align_get_only_loci_with_min_taxa --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean --output ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p --taxa 118 --percent 0.95 --cores 8 --log-path ./temp_log
+```
+
+This retains 4009 of 5026 total alignments with 95% of taxa (n = 118 taxa).
+
+------------------------------------------------------------------------------------------
+### 3. Format revised dataset 2, with only tissue samples + Pseudochelidon samples
+
+Here, we'll remove skin samples from the alignments, generate a 95% complete data matrix, and proceed with analyses focusing on only these samples.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce/4-datasets/
+mkdir all-rev2
+cd ..
+```
+
+#### Extract alignments without excluded samples
+
+Extract alignments:
+```
+phyluce_align_extract_taxa_from_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --output ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean --output-format nexus --exclude Cecropis_daurica_Africa_Uganda_LACM_71522 Delichon_nipalense_Nepal_FMNH_276821 Hirundo_lucida_Gambia_FMNH_320046 Hirundo_megaensis_Ethiopia_AMNH_SKIN_348889 Hirundo_nigrorufa_Angola_AMNH_SKIN_707943 Petrochelidon_fluvicola_India_FMNH_233414 Petrochelidon_rufigula_Angola_AMNH_SKIN_707945 Phedinopsis_brazzae_Angola_AMNH_SKIN_764767 Progne_cryptoleuca_Cuba_LSUMZ_142940 Progne_cryptoleuca_Cuba_LSUMZ_142944 Progne_modesta_Ecuador_MVZ_130129 Progne_murphyi_Peru_LSUMZ_114185 Progne_murphyi_Peru_LSUMZ_114186 Progne_sinaloae_Mexico_KU_40044 Progne_sinaloae_Mexico_KU_40045 Psalidoprocne_obscura_Ivory_Coast_FMNH_279082 Ptyonoprogne_concolor_India_FMNH_233366 Ptyonoprogne_obsoleta_Egypt_UMMZ_224076 Riparia_congica_Congo_FMNH_213543 --cores 8 --log-path ./temp_log
+```
+
+Verify that the excluded taxa are not in the resulting alignments:
+```
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Progne_cryptoleuca_Cuba_LSUMZ_142940' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Cecropis_daurica_Africa_Uganda_LACM_71522' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Phedinopsis_brazzae_Angola_AMNH_SKIN_764767' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Progne_modesta_Ecuador_MVZ_130129' $i; done
+```
+
+#### Format UCE locus dataset with 95% samples per locus
+
+```
+phyluce_align_get_only_loci_with_min_taxa --alignments ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean --output ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean-95p --taxa 103 --percent 0.95 --cores 8 --log-path ./temp_log
+```
+
+This retains 4518 of 5001 total alignments with 95% of taxa (n = 103 taxa).
+
+------------------------------------------------------------------------------------------
+### 4. Format revised dataset 3, with only tissue samples
+
+Here, we'll remove all skin samples from the alignments, generate a 95% complete data matrix, and proceed with analyses focusing on only these samples.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce/4-datasets/
+mkdir all-rev3
+cd ..
+```
+
+#### Extract alignments without excluded samples
+
+Extract alignments:
+```
+phyluce_align_extract_taxa_from_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --output ./4-datasets/all-rev3/mafft-gblocks-nexus-internal-trimmed-all-rev3-samples-incomplete-clean --output-format nexus --exclude Pseudochelidon_eurystomina_Congo_FMNH_213526 Pseudochelidon_sirintarae_Thailand_AMNH_SKIN_708673 Cecropis_daurica_Africa_Uganda_LACM_71522 Delichon_nipalense_Nepal_FMNH_276821 Hirundo_lucida_Gambia_FMNH_320046 Hirundo_megaensis_Ethiopia_AMNH_SKIN_348889 Hirundo_nigrorufa_Angola_AMNH_SKIN_707943 Petrochelidon_fluvicola_India_FMNH_233414 Petrochelidon_rufigula_Angola_AMNH_SKIN_707945 Phedinopsis_brazzae_Angola_AMNH_SKIN_764767 Progne_cryptoleuca_Cuba_LSUMZ_142940 Progne_cryptoleuca_Cuba_LSUMZ_142944 Progne_modesta_Ecuador_MVZ_130129 Progne_murphyi_Peru_LSUMZ_114185 Progne_murphyi_Peru_LSUMZ_114186 Progne_sinaloae_Mexico_KU_40044 Progne_sinaloae_Mexico_KU_40045 Psalidoprocne_obscura_Ivory_Coast_FMNH_279082 Ptyonoprogne_concolor_India_FMNH_233366 Ptyonoprogne_obsoleta_Egypt_UMMZ_224076 Riparia_congica_Congo_FMNH_213543 --cores 8 --log-path ./temp_log
+```
+
+Verify that the excluded taxa are not in the resulting alignments:
+```
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Progne_cryptoleuca_Cuba_LSUMZ_142940' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Cecropis_daurica_Africa_Uganda_LACM_71522' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Phedinopsis_brazzae_Angola_AMNH_SKIN_764767' $i; done
+for i in ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean/*.nexus; do grep 'Progne_modesta_Ecuador_MVZ_130129' $i; done
+```
+
+#### Format UCE locus dataset with 95% samples per locus
+
+```
+phyluce_align_get_only_loci_with_min_taxa --alignments ./4-datasets/all-rev3/mafft-gblocks-nexus-internal-trimmed-all-rev3-samples-incomplete-clean --output ./4-datasets/all-rev3/mafft-gblocks-nexus-internal-trimmed-all-rev3-samples-incomplete-clean-95p --taxa 101 --percent 0.95 --cores 8 --log-path ./temp_log
+```
+
+This retains 4565 of 4986 total alignments with 95% of taxa (n = 101 taxa).
+
+Get alignment summary data:
+```
+phyluce_align_get_align_summary_data --alignments ./4-datasets/all-rev3/mafft-gblocks-nexus-internal-trimmed-all-rev3-samples-incomplete-clean-95p --cores 24 --log-path ./temp_log
+```
+
+## Part 6 - Concatenate UCE alignments
+
+We now have a 95% complete UCE data matrix for all samples (i.e., outgroups, tissue, and skin samples).
+
+We will run a concatenated maximum likelihood analysis in RAxML and a coalescent-based analysis in SVDquartets. To do this we need a concatenated input alignment.
+
+### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+mkdir 5-input-alignments
+cd 5-input-alignments
+mkdir all
+mkdir all-rev1
+``` 
+
+------------------------------------------------------------------------------------------
+### 1. Full dataset (all 122 taxa)
+
+#### 1. Use phyluce to generate concatenated alignment nexus
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+conda activate phyluce
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p --output ./5-input-alignments/all/hirundinidae-all-95-nexus-concat --nexus --log-path .
+```
+
+Confirm that there are 122 taxon labels in the nexus:
+```
+cut -d' ' -f1 ./5-input-alignments/all/hirundinidae-all-95-nexus-concat/hirundinidae-all-95-nexus-concat.nexus
+```
+
+Yes, there are.
+
+#### 2. Use phyluce to generate concatenated alignment phylip
+
+```
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p --output ./5-input-alignments/all/hirundinidae-all-95-phylip-concat --phylip --log-path .
+```
+The concatenated phylip alignment is in `./5-input-alignments/all/hirundinidae-all-95-phylip-concat/hirundinidae-all-95-phylip-concat.phylip`.
+
+#### 3. Format UCE labels in concatenated outputs
+
+We want 'uce_XXXX' instead of 'uce-XXXX' format.
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all/hirundinidae-all-95-nexus-concat/hirundinidae-all-95-nexus-concat.nexus
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all/hirundinidae-all-95-phylip-concat/hirundinidae-all-95-phylip-concat.charsets
+```
+
+#### 4. Format concatenated alignment for pilot dataset
+
+To diagnose how 'successful' the phyluce correction step was for the skin samples, it'll be good to run a pilot analysis on a subset of loci to determine if the long branch length issue was solved.
+
+##### 1. Select random 100 UCE loci for analysis
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+mkdir ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p-pilot
+cd ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 100`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p-pilot; done
+```
+
+##### 2. Use phyluce to generate concatenated alignment phylip
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+conda activate phyluce
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean-95p-pilot --output ./5-input-alignments/all/hirundinidae-all-95-pilot-phylip-concat --phylip --log-path .
+```
+
+##### 3. Format UCE labels
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all/hirundinidae-all-95-pilot-phylip-concat/hirundinidae-all-95-pilot-phylip-concat.charsets
+```
+
+------------------------------------------------------------------------------------------
+### 2. Full, revised 1 dataset (n = 118 taxa)
+
+Here, only the 4 most problematic skin samples have been removed.
+
+#### 1. Format concatenated alignment for pilot dataset (100 loci, as above)
+
+##### 1. Select random 100 UCE loci for analysis
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce
+mkdir ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-pilot
+cd ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 100`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-pilot; done
+```
+
+##### 2. Use phyluce to generate concatenated alignment phylip
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-pilot --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-phylip-concat --phylip --log-path .
+```
+
+##### 3. Use phyluce to generate concatenated alignment nexus
+
+```
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-pilot --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-nexus-concat --nexus --log-path .
+```
+
+##### 4. Format UCE labels
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-phylip-concat/hirundinidae-all-rev1-95-pilot-phylip-concat.charsets
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-nexus-concat/hirundinidae-all-rev1-95-pilot-nexus-concat.nexus
+```
+
+#### 2. Format concatenated alignment for full dataset
+
+##### 1. Use phyluce to generate concatenated alignment phylip
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-phylip-concat --phylip --log-path .
+```
+
+##### 2. Use phyluce to generate concatenated alignment nexus
+
+```
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-concat --nexus --log-path .
+```
+
+##### 3. Format UCE labels
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-phylip-concat/hirundinidae-all-rev1-95-phylip-concat.charsets
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-concat/hirundinidae-all-rev1-95-nexus-concat.nexus
+```
+
+------------------------------------------------------------------------------------------
+### 3. Full, revised 2 dataset (n = 103 taxa)
+
+This includes the tissue samples and Pseudochelidon.
+
+#### 2. Format concatenated alignment for full dataset
+
+##### 1. Use phyluce to generate concatenated alignment phylip
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean-95p --output ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-phylip-concat --phylip --log-path .
+```
+
+##### 2. Use phyluce to generate concatenated alignment nexus
+
+```
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev2/mafft-gblocks-nexus-internal-trimmed-all-rev2-samples-incomplete-clean-95p --output ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-nexus-concat --nexus --log-path .
+```
+
+##### 3. Format UCE labels
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-phylip-concat/hirundinidae-all-rev2-95-phylip-concat.charsets
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-nexus-concat/hirundinidae-all-rev2-95-nexus-concat.nexus
+```
