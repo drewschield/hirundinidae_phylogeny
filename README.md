@@ -269,3 +269,79 @@ The outputs from the correction step are in:
 ./2-correction/filtered_norm_pileups
 ```
 
+## Part 2 - Finding UCE loci in the corrected skin sample contigs
+
+We now have a set of corrected consensus contig .fasta sequences for the 21 skin samples.
+
+We need to identify UCE loci among the contigs, to be integrated into datasets with the tissue samples.
+
+------------------------------------------------------------------------------------------
+### Input data locations
+
+The corrected contigs from the correction step are in:
+```
+/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/2-correction/consensus
+```
+
+The 5k UCE probe set is in:
+```
+/data3/hirundinidae_phylogeny/Hirundinidae_UCE/phyluce/uce-5k-probes.fasta
+```
+
+The probe set file is small. For convenience/posterity, retrieve it to the working directory.
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce
+cp /data3/hirundinidae_phylogeny/Hirundinidae_UCE/phyluce/uce-5k-probes.fasta .
+```
+
+------------------------------------------------------------------------------------------
+### 1. Format corrected consensus contig file names
+
+We want these to match the inputs for the outgroup/tissue samples.
+
+Currently, the filename extensions are `<sample>.consensus.filt.fasta`. We want them to be `<sample>.contigs.fasta`.
+
+We'll write copies to a separate `consensus-rename` directory, to which we'll also add the .fasta files for the outgroup/tissue samples in the next step.
+
+```
+cd ./2-correction/
+mkdir consensus-rename
+cp ./consensus/*.fasta ./consensus-rename/
+cd consensus-rename
+for i in *.fasta; do name=`echo $i | cut -d'.' -f1`; echo $name; mv ./$name.consensus.filt.fasta ./$name.contigs.fasta; done
+```
+
+------------------------------------------------------------------------------------------
+### 2. Retrieve contigs for outgroup/tissue samples
+
+We will want to find UCE loci for all of the samples together so that they have a common database.
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/2-correction/consensus-rename
+cp /data3/hirundinidae_phylogeny/Hirundinidae_UCE/phyluce/spades-assemblies-outgroup/contigs/*.fasta .
+cp /data3/hirundinidae_phylogeny/Hirundinidae_UCE/phyluce/spades-assemblies-ingroup-tissues/contigs/*.fasta .
+cp /data3/hirundinidae_phylogeny/Hirundinidae_UCE/phyluce/spades-assemblies-tachycineta-project/contigs/*.fasta .
+```
+
+We now have the data for the total 122 samples!
+
+------------------------------------------------------------------------------------------
+### 3. Find UCE loci in corrected consensus contigs + assembled contigs for outgroups/ingroup tissue samples.
+
+Run `phyluce_assembly_match_contigs_to_probes` to find UCE matches.
+```
+conda activate phyluce
+phyluce_assembly_match_contigs_to_probes --contigs 2-correction/consensus-rename/ --probes uce-5k-probes.fasta	--output 3-uce-search-results
+```
+
+------------------------------------------------------------------------------------------
+### 4. Summary of results
+
+The output probe matching stats for the skin samples are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/Hirundinidae_UCE_skins_reanalysis.xlsx`.
+
+Outputs are in:
+```
+./3-uce-search-results/<sample>.contigs.lastz
+./3-uce-search-results/probe.matches.sqlite
+```
+
+
