@@ -857,3 +857,649 @@ phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev2/mafft-gb
 sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-phylip-concat/hirundinidae-all-rev2-95-phylip-concat.charsets
 sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev2/hirundinidae-all-rev2-95-nexus-concat/hirundinidae-all-rev2-95-nexus-concat.nexus
 ```
+
+## Part 7 - Maximum likelihood analysis in RAxML
+
+With a formatted input dataset, we'll now estimate ML trees from the UCE data.
+
+We have locus-specific alignments and a concatenated alignment as inputs.
+
+### Set up environment
+
+We'll make an analysis directory for RAxML and set up subdirectories for various analyses.
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/
+mkdir raxml
+```
+
+------------------------------------------------------------------------------------------
+### 1. Perform pilot concatenated analysis on all samples (n = 122 taxa)
+
+This is based on 100 random UCE loci from the 95% UCE matrix.
+
+The input data are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all/hirundinidae-all-95-pilot-phylip-concat/hirundinidae-all-95-pilot-phylip-concat.phylip`
+
+#### Set up environment
+
+```
+cd raxml
+mkdir hirundinidae-all-95-concat-pilot
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd hirundinidae-all-95-concat-pilot
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all/hirundinidae-all-95-pilot-phylip-concat/hirundinidae-all-95-pilot-phylip-concat.* .
+mv hirundinidae-all-95-pilot-phylip-concat.phylip hirundinidae-all-95-pilot-concat.phylip
+mv hirundinidae-all-95-pilot-phylip-concat.charsets hirundinidae-all-95-pilot-concat.charsets
+```
+
+#### 1. Perform initial analysis
+
+We want to check to make sure RAxML reads in the data and will run.
+
+```
+raxml-ng-mpi --parse --msa ./hirundinidae-all-95-pilot-concat.phylip --model GTR+G
+```
+
+#### 2. Perform tree search
+
+We'll do 40 ML tree searches (20 from a random starting tree and 20 from a parsimony starting tree). These steps follow Clare's notes in '9d-all-95' in her '9-RAxML-NG' folder.
+
+```
+raxml-ng-mpi --threads 36 --msa hirundinidae-all-95-pilot-concat.phylip.raxml.rba --model GTR+G --prefix ha95-pilot-best --seed 1487 --tree pars{20},rand{20}
+```
+
+#### 3. Bootstrapping
+
+We'll run 100 bootstraps on the results of the tree search.
+
+```
+raxml-ng-mpi --threads 36 --bootstrap --msa hirundinidae-all-95-pilot-concat.phylip.raxml.rba --model GTR+G --prefix ha95-pilot-boot --seed 1913 --bs-trees 100
+```
+
+#### 4. Compute support values
+
+First calculate bootstrap support on the best-scoring ML tree from RAxML.
+
+```
+raxml-ng-mpi --threads 1 --support --tree ha95-pilot-best.raxml.bestTree --bs-trees ha95-pilot-boot.raxml.bootstraps --prefix ha95-pilot-annotated
+```
+
+Then, summarize bootstraps as a 50 percent majority rule consensus tree using `sumtrees.py` from Jeet Sukumaran's [DendroPy code](https://github.com/jeetsukumaran/DendroPy/blob/main/).
+
+Install DendroPy in python 3 environment:
+```
+conda activate pixy
+pip install dendropy
+```
+
+Run SumTrees:
+```
+sumtrees.py -o ha95-pilot-consensus.sumtrees.support ha95-pilot-boot.raxml.bootstraps
+```
+
+------------------------------------------------------------------------------------------
+### 2. Perform pilot concatenated analysis on the full, revised 1 dataset (n = 118 taxa)
+
+This is based on all UCE loci from the 95% UCE matrix.
+
+The input data are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-phylip-concat/hirundinidae-all-rev1-95-pilot-phylip-concat.phylip`
+
+#### Set up environment
+
+```
+cd raxml
+mkdir hirundinidae-all-rev1-95-concat-pilot
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd hirundinidae-all-rev1-95-concat-pilot
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-phylip-concat/hirundinidae-all-rev1-95-pilot-phylip-concat.* .
+mv hirundinidae-all-rev1-95-pilot-phylip-concat.phylip hirundinidae-all-rev1-95-pilot-concat.phylip
+mv hirundinidae-all-rev1-95-pilot-phylip-concat.charsets hirundinidae-all-rev1-95-pilot-concat.charsets
+```
+
+#### 1. Perform initial analysis
+
+We want to check to make sure RAxML reads in the data and will run.
+
+```
+raxml-ng-mpi --parse --msa ./hirundinidae-all-rev1-95-pilot-concat.phylip --model GTR+G
+```
+
+#### 2. Perform tree search
+
+We'll do 40 ML tree searches (20 from a random starting tree and 20 from a parsimony starting tree). These steps follow Clare's notes in '9d-all-95' in her '9-RAxML-NG' folder.
+
+```
+raxml-ng-mpi --threads 36 --msa hirundinidae-all-rev1-95-pilot-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev1-pilot-best --seed 1487 --tree pars{20},rand{20}
+```
+
+#### 3. Bootstrapping
+
+We'll run 100 bootstraps on the results of the tree search.
+
+```
+raxml-ng-mpi --threads 36 --bootstrap --msa hirundinidae-all-rev1-95-pilot-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev1-pilot-boot --seed 2048 --bs-trees 100
+```
+
+#### 4. Compute support values
+
+First calculate bootstrap support on the best-scoring ML tree from RAxML.
+
+```
+raxml-ng-mpi --threads 1 --support --tree ha95-rev1-pilot-best.raxml.bestTree --bs-trees ha95-rev1-pilot-boot.raxml.bootstraps --prefix ha95-rev1-pilot-annotated
+```
+
+Then, summarize bootstraps as a 50 percent majority rule consensus tree using `sumtrees.py` from Jeet Sukumaran's [DendroPy code](https://github.com/jeetsukumaran/DendroPy/blob/main/).
+
+```
+sumtrees.py -o ha95-rev1-pilot-consensus.sumtrees.support ha95-rev1-pilot-boot.raxml.bootstraps
+```
+
+------------------------------------------------------------------------------------------
+### 3. Perform full concatenated analysis on the full, revised 1 dataset (n = 118 taxa)
+
+Here we'll run RAxML on the concatenated 95% matrix for the all-rev1 dataset (n = 118 taxa; see above).
+
+The input data are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-phylip-concat/hirundinidae-all-rev1-95-phylip-concat.phylip`
+
+#### Set up environment
+
+```
+cd raxml
+mkdir hirundinidae-all-rev1-95-concat
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd hirundinidae-all-rev1-95-concat
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-phylip-concat/hirundinidae-all-rev1-95-phylip-concat.* .
+mv hirundinidae-all-rev1-95-phylip-concat.phylip hirundinidae-all-rev1-95-concat.phylip
+mv hirundinidae-all-rev1-95-phylip-concat.charsets hirundinidae-all-rev1-95-concat.charsets
+```
+
+#### 1. Perform initial test run
+
+We want to check to make sure RAxML reads in the data and will run.
+
+```
+raxml-ng-mpi --parse --msa ./hirundinidae-all-rev1-95-concat.phylip --model GTR+G
+```
+
+This completed and confirmed that RAxML could run on the input data. It produced the output files:
+```
+hirundinidae-all-rev1-95-concat.phylip.raxml.log
+hirundinidae-all-rev1-95-concat.phylip.raxml.rba
+```
+
+#### 2. Perform tree search
+
+We'll do 40 ML tree searches (20 from a random starting tree and 20 from a parsimony starting tree). These steps follow Clare's notes in '9d-all-95' in her '9-RAxML-NG' folder.
+
+```
+raxml-ng-mpi --threads 56 --msa hirundinidae-all-rev1-95-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev1-best --seed 1946 --tree pars{20},rand{20}
+```
+
+Note [08.09.2023]: Running this in mirrored directory on Nostromo to take advantage of extra threads.
+
+#### 3. Bootstrapping
+
+We'll run 100 bootstraps on the results of the tree search.
+
+```
+raxml-ng-mpi --threads 56 --bootstrap --msa hirundinidae-all-rev1-95-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev1-boot --seed 6985 --bs-trees 100
+```
+
+#### 4. Compute support values
+
+First calculate bootstrap support on the best-scoring ML tree from RAxML.
+
+```
+raxml-ng-mpi --threads 1 --support --tree ha95-rev1-best.raxml.bestTree --bs-trees ha95-rev1-boot.raxml.bootstraps --prefix ha95-rev1-annotated
+```
+
+Then, summarize bootstraps as a 50 percent majority rule consensus tree using `sumtrees.py` from Jeet Sukumaran's [DendroPy code](https://github.com/jeetsukumaran/DendroPy/blob/main/).
+
+```
+conda activate pixy
+sumtrees.py -o ha95-rev1-consensus.sumtrees.support ha95-rev1-boot.raxml.bootstraps
+```
+
+We'll incorporate the bootstrapped, best-scoring ML tree in the main results.
+
+------------------------------------------------------------------------------------------
+### 4. Perform full concatenated analysis on the full, revised 2 dataset (n = 103 taxa)
+
+Here we'll run RAxML on the concatenated 95% matrix for the all-rev2 dataset (tissue samples and Pseudochelidon).
+
+The input data are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev2/hirundinidae-all-rev2-95-phylip-concat/hirundinidae-all-rev2-95-phylip-concat.phylip`
+
+#### Set up environment
+
+```
+cd raxml
+mkdir hirundinidae-all-rev2-95-concat
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd hirundinidae-all-rev2-95-concat
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev2/hirundinidae-all-rev2-95-phylip-concat/hirundinidae-all-rev2-95-phylip-concat.* .
+mv hirundinidae-all-rev2-95-phylip-concat.phylip hirundinidae-all-rev2-95-concat.phylip
+mv hirundinidae-all-rev2-95-phylip-concat.charsets hirundinidae-all-rev2-95-concat.charsets
+```
+
+#### 1. Perform initial test run
+
+Note: running this in mirrored directory on Nostromo.
+
+We want to check to make sure RAxML reads in the data and will run.
+
+```
+raxml-ng-mpi --parse --msa ./hirundinidae-all-rev2-95-concat.phylip --model GTR+G
+```
+
+This completed and confirmed that RAxML could run on the input data. It produced the output files:
+```
+hirundinidae-all-rev2-95-concat.phylip.raxml.log
+hirundinidae-all-rev2-95-concat.phylip.raxml.rba
+```
+
+#### 2. Perform tree search
+
+We'll do 40 ML tree searches (20 from a random starting tree and 20 from a parsimony starting tree). These steps follow Clare's notes in '9d-all-95' in her '9-RAxML-NG' folder.
+
+```
+raxml-ng-mpi --threads 24 --msa hirundinidae-all-rev2-95-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev2-best --seed 1946 --tree pars{20},rand{20}
+```
+
+Note [08.09.2023]: Running this in mirrored directory on Nostromo to take advantage of extra threads.
+
+#### 3. Bootstrapping
+
+We'll run 100 bootstraps on the results of the tree search.
+
+```
+raxml-ng-mpi --threads 56 --bootstrap --msa hirundinidae-all-rev2-95-concat.phylip.raxml.rba --model GTR+G --prefix ha95-rev2-boot --seed 547689 --bs-trees 100
+```
+
+#### 4. Compute support values
+
+First calculate bootstrap support on the best-scoring ML tree from RAxML.
+
+```
+raxml-ng-mpi --threads 1 --support --tree ha95-rev2-best.raxml.bestTree --bs-trees ha95-rev2-boot.raxml.bootstraps --prefix ha95-rev2-annotated
+```
+
+Then, summarize bootstraps as a 50 percent majority rule consensus tree using `sumtrees.py` from Jeet Sukumaran's [DendroPy code](https://github.com/jeetsukumaran/DendroPy/blob/main/).
+
+```
+conda activate pixy
+sumtrees.py -o ha95-rev2-consensus.sumtrees.support ha95-rev2-boot.raxml.bootstraps
+```
+
+We'll incorporate the bootstrapped, best-scoring ML tree in the main results.
+
+## Part 8 - Species tree inference
+
+We'll run the coalescent-based quartets method SVDquartets on the concatenated alignment for the full, revised 1 dataset (n = 118 taxa).
+
+With alignments for individual UCEs, we'll also estimate the species tree based on tissue samples using ASTRAL, first estimating gene trees using RAxML, then performing multi-species coalescent species tree inference using ASTRAL.
+
+------------------------------------------------------------------------------------------
+### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/
+mkdir species_tree
+cd species_tree
+mkdir svdq
+mkdir astral
+```
+
+------------------------------------------------------------------------------------------
+### Install SVDQuartets
+
+SVDQuartets is implemented in PAUP*, so we'll install the whole package.
+
+```
+cd ~/tmp/
+wget http://phylosolutions.com/paup-test/paup4a168_ubuntu64.gz
+gunzip paup4a168_ubuntu64.gz
+mv paup4a168_ubuntu64 paup
+chmod +x paup
+cp paup /usr/local/bin
+```
+
+------------------------------------------------------------------------------------------
+### Install raxmlHPC-AVX
+
+#### Create new conda environment and install RAxML (separate from raxml-ng in base environment)
+
+```
+conda create --name raxml
+conda activate raxml
+conda install -c bioconda raxml
+```
+
+This installs `raxmlHPC-AVX2`, which has the same input commands as the previous version used by Clare.
+
+Note, with `raxmlHPC-PTHREADS-AVX2`, one can also specify the `-T` flag with an integer number of threads for parallel processing.
+
+------------------------------------------------------------------------------------------
+### Install Astral
+
+Astral is available from https://github.com/smirarab/ASTRAL.
+
+#### Set up environment and install Astral
+
+```
+cd astral
+git clone https://github.com/smirarab/ASTRAL.git
+cd ASTRAL
+./make.sh
+```
+
+#### Test installation
+
+```
+cd Astral
+java -jar astral.5.7.8.jar -i ./main/test_data/song_primates.424.gene.tre
+```
+
+It works.
+
+------------------------------------------------------------------------------------------
+### 1. Pilot species tree analysis (SVDquartets; all-rev1 dataset, n = 118 taxa, 100 loci)
+
+Brant recommended SVDquartets as our main coalescent-based inference to compare to the concatenated analysis.
+
+The ASTRAL analysis below can be used on tissue samples only, and mainly to evaluate concordance in higher-level relationships.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/
+mkdir svdq
+cd svdq
+mkdir ha95-rev1-pilot
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd ha95-rev1-pilot
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-pilot-nexus-concat/hirundinidae-all-rev1-95-pilot-nexus-concat.nexus .
+mv hirundinidae-all-rev1-95-pilot-nexus-concat.nexus hirundinidae-all-rev1-95-pilot-concat.nexus
+```
+
+#### Run preliminary analysis, specifying outgroup clade
+
+We'll run the analysis with 100 bootstrap replicates.
+```
+paup
+exe hirundinidae-all-rev1-95-pilot-concat.nexus;
+outgroup 25;
+outgroup 42;
+set outroot=mono;
+svdq
+svdq showScores=no seed=1234568 bootstrap nreps=100 treeFile=ha95-rev1-pilot.bootstrap.tre;
+```
+
+Save the tree to file:
+```
+savetrees file=ha95-rev1-pilot.svdq.tre savebootp=nodelabels;
+```
+
+------------------------------------------------------------------------------------------
+### 2. Species tree analysis (SVDquartets; all-rev1 dataset, n = 118 taxa, all loci)
+
+This is the main coalescent-based species tree analysis to report on.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/svdq
+mkdir ha95-rev1
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd ha95-rev1
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-concat/hirundinidae-all-rev1-95-nexus-concat.nexus .
+mv hirundinidae-all-rev1-95-nexus-concat.nexus hirundinidae-all-rev1-95-concat.nexus
+```
+
+#### Run preliminary analysis, specifying outgroup clade
+
+We'll run the analysis with 100 bootstrap replicates.
+```
+paup
+exe hirundinidae-all-rev1-95-concat.nexus;
+outgroup 25;
+outgroup 42;
+set outroot=mono;
+svdq showScores=no seed=65478211 bootstrap nreps=100 treeFile=ha95-rev1.bootstrap.tre;
+```
+
+Save the tree to file:
+```
+savetrees file=ha95-rev1.svdq.tre savebootp=nodelabels;
+```
+
+------------------------------------------------------------------------------------------
+### 3. Species tree analysis (SVDquartets; all-rev2 dataset, tissue samples + Pseudochelidon)
+
+This is for comparison to the all-rev1 dataset results.
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/svdq
+mkdir ha95-rev2
+```
+
+#### Retrieve the input concatenated data matrix
+
+```
+cd ha95-rev2
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev2/hirundinidae-all-rev2-95-nexus-concat/hirundinidae-all-rev2-95-nexus-concat.nexus .
+mv hirundinidae-all-rev2-95-nexus-concat.nexus hirundinidae-all-rev2-95-concat.nexus
+```
+
+#### Run preliminary analysis, specifying outgroup clade
+
+We'll run the analysis with 100 bootstrap replicates.
+```
+paup
+exe hirundinidae-all-rev2-95-concat.nexus;
+outgroup 23;
+outgroup 37;
+set outroot=mono;
+svdq showScores=no seed=65478211 bootstrap nreps=100 treeFile=ha95-rev2.bootstrap.tre;
+```
+
+Save the tree to file:
+```
+savetrees file=ha95-rev2.svdq.tre savebootp=nodelabels;
+```
+
+------------------------------------------------------------------------------------------
+### 4. Species tree analysis (ASTRAL; all-rev3 dataset; tissue samples only)
+
+This includes the tissue dataset (n = 101 taxa). Preliminary analysis revealed that Pseudochelidon gets placed within the clade with Hirundo, Delichon, etc., which can't be real and is probably a data artifact.
+
+Paring down to just the tissue samples gives us the ability to compare the topologies for Hirundininae across approaches (i.e., no Pseudochelidon included).
+
+#### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/astral
+mkdir ha95-rev3
+cd ha95-rev3
+mkdir raxml
+cd raxml
+mkdir phylip
+mkdir gene_trees
+```
+
+#### 1. Gene tree estimation
+
+We'll estimated gene trees using RAxML, which will be used as input for the coalescent-based method in Astral.
+
+##### 1. Convert input alignments
+
+We first need to convert nexus alignments from phyluce to relaxed phylip input for RAxML.
+
+We'll run the conversion in the `phyluce` directory, then copy over to our working directory for gene tree estimation.
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+conda activate phyluce
+phyluce_align_convert_one_align_to_another --cores 8 --alignments ./4-datasets/all-rev3/mafft-gblocks-nexus-internal-trimmed-all-rev3-samples-incomplete-clean-95p --output ./5-input-alignments/all-rev3/hirundinidae-all-rev3-95-phylip --input-format nexus --output-format phylip-relaxed --log-path .
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/astral/ha95-rev3/raxml/phylip
+cp /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/5-input-alignments/all-rev3/hirundinidae-all-rev3-95-phylip/*.phylip-relaxed .
+cd ..
+```
+
+##### 2. Count bootstrap replicates needed for multilocus bootstrapping
+
+We will generate consensus trees, and rather than running bootstraps on each tree, we'll perform multilocus boostrapping.
+
+We need to know how many bootstrap replicates we'll need per locus, and can figure this out using `phyluce_genetrees_generate_multilocus_bootstrap_count`.
+
+```
+phyluce_genetrees_generate_multilocus_bootstrap_count --alignments ./phylip --bootstrap_replicates ha95-rev3.bootstrap.replicates --bootstrap_counts ha95-rev3.bootstrap.counts --directory ./phylip --bootreps 500 --log-path .  
+```
+
+This outputs two output files, one with the number of replicates needed for each locus and the other with bootstrap replicate sampling:
+```
+ha95-rev3.bootstrap.counts
+ha95-rev3.bootstrap.replicates
+```
+
+##### 3. Perform test analysis
+
+```
+raxmlHPC-PTHREADS-AVX2 -T 48 -m GTRGAMMA -N 523 -p 125792 -b 399802 -n bootrep -k -s ./phylip/uce-7236.phylip-relaxed
+```
+
+This outputs the files:
+```
+RAxML_bootstrap.bootrep
+RAxML_info.bootrep
+```
+
+These files are written to the current directory, so in the script below, we'll temporarily rename these and move to locus-specific output directories.
+
+##### 4. Perform gene tree bootstrapping analysis
+
+###### Set up environment
+
+```
+cd gene_trees
+mkdir bootstrap
+cd ..
+```
+
+###### Wrote `runRAxML_bootstrap_parallel.sh` to perform analysis on each UCE locus
+
+This uses GNU parallel to run 48 simultaneous analyses.
+
+The results are written to `./gene_trees/bootstrap/`.
+
+runRAxML_bootstrap_parallel.sh:
+
+```
+file=$1
+reps=$2
+rand1=`shuf -i 1-1000000 -n 1`
+rand2=`shuf -i 1-1000000 -n 1`
+uce=`echo $file | cut -d'/' -f3 | cut -d'.' -f1`
+mkdir ./gene_trees/bootstrap/$uce
+raxmlHPC-AVX2 -m GTRGAMMA -N $reps -p $rand1 -b $rand2 -n $uce.bootrep -k -s $file
+mv ./RAxML_bootstrap.$uce.bootrep ./gene_trees/bootstrap/$uce/RAxML_bootstrap.bootrep
+mv ./RAxML_info.$uce.bootrep ./gene_trees/bootstrap/$uce/RAxML_info.bootrep
+```
+
+###### Run the script with parallel
+
+This reads in the bootstrap count output from phyluce as input.
+
+```
+conda activate raxml
+parallel --progress --joblog logfile.raxml -j 48 --workdir . --colsep ' ' ./runRAxML_bootstrap_parallel.sh :::: ha95-rev3.bootstrap.counts
+```
+
+###### Sort bootstrap replicates
+
+We'll use `phyluce_genetrees_sort_multilocus_bootstraps` to sort bootstrapped gene trees.
+
+```
+cd gene_trees
+mkdir bootstrap_sorted
+cd ..
+phyluce_genetrees_sort_multilocus_bootstraps --input ./gene_trees/bootstrap --bootstrap_replicates ./ha95-rev3.bootstrap.replicates --output ./gene_trees/bootstrap_sorted
+```
+
+##### 5. Perform coalescent-based species tree analysis in Astral
+
+###### Set up environment
+
+Get into the right place and retrieve bootstrap trees:
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/astral/ha95-rev3
+mkdir astral_trees
+mkdir astral_log
+```
+
+Make list file with path to multilocus bootstraps:
+```
+cd ./raxml/gene_trees
+list=`ls -lh bootstrap_sorted/boot* | cut -d':' -f2 | cut -d' ' -f2`; for i in $list; do echo /data3/hirundinidae_phylogeny/workflow_reanalysis/species_tree/astral/ha95-rev3/raxml/gene_trees/$i >> ../../bootstrap.list; done
+```
+
+Note: change the path to `/data3/` instead of `/media/mother/extradrive1` if working on Terminator.
+
+###### Run test analysis
+
+```
+java -Xmx3900M -jar ../ASTRAL/astral.5.7.8.jar -i /media/mother/extradrive1/hirundinidae_phylogeny/workflow_reanalysis/species_tree/astral/ha95-rev3/raxml/gene_trees/bootstrap_sorted/boot000 -o test.boot000.astral.tre
+```
+
+###### Write run script for parallel analysis
+
+runAstral_parallel.sh:
+
+```
+file=$1
+name=`echo $file | rev | cut -d"/" -f1 | rev`
+java -Xmx3900M -jar ../ASTRAL/astral.5.7.8.jar -i $file -o ./astral_trees/$name.astral.tre 2>./astral_log/$name.astral.log
+```
+
+###### Run Astral on pilot dataset
+
+```
+parallel --progress --joblog logfile.astral -j 36 --workdir . ./runAstral_parallel.sh :::: bootstrap.list
+```
+
+###### Concatenate Astral bootrep species trees
+
+```
+cat ./astral_trees/*.tre > astral.ha95-rev3.bootrep.tre
+```
+
+###### Summarize trees using 50% majority rule consensus tree
+
+```
+conda activate pixy
+sumtrees.py -o astral.ha95-rev3.50con.tre --summary-target=consensus --min-clade-freq=0.5 astral.ha95-rev3.bootrep.tre
+```
