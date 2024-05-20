@@ -1503,3 +1503,285 @@ cat ./astral_trees/*.tre > astral.ha95-rev3.bootrep.tre
 conda activate pixy
 sumtrees.py -o astral.ha95-rev3.50con.tre --summary-target=consensus --min-clade-freq=0.5 astral.ha95-rev3.bootrep.tre
 ```
+
+## Part 9 - Divergence dating using Bayesian inference
+
+We'll use beast2 to perform full Bayesian tree search and divergence dating analyses on subsets of loci.
+
+Useful resources:
+
+https://beast2-dev.github.io/beast-docs/beast2/DivergenceDating/DivergenceDatingTutorial.html
+https://github.com/jasonleebrown/UCE_phyluce_pipeline/blob/master/README.md#bayesian-analysis-with-beast
+https://beast2-dev.github.io/hmc/hmc//Standard/Clock_Model/index.html
+https://beast.community/errors.html
+
+------------------------------------------------------------------------------------------
+### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/
+mkdir beast
+cd beast
+mkdir ha95-rev1
+```
+
+------------------------------------------------------------------------------------------
+### Install beast2
+
+```
+cd ~/tmp/
+wget https://github.com/CompEvol/beast2/releases/download/v2.7.5/BEAST.v2.7.5.Linux.x86.tgz
+tar -xf BEAST.v2.7.5.Linux.x86.tgz
+mkdir /data3/hirundinidae_phylogeny/workflow_reanalysis/beast
+cp -r ./beast /data3/hirundinidae_phylogeny/workflow_reanalysis/beast/
+```
+
+Also run included `packagemanager` to install ORC package:
+```
+./beast/bin/packagemanager -add ORC
+```
+
+------------------------------------------------------------------------------------------
+### Install Beagle library
+
+```
+cd ~/tmp/
+git clone --depth=1 https://github.com/beagle-dev/beagle-lib.git
+cd beagle-lib
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX:PATH=$HOME ..
+make install
+```
+
+This installed the Beagle libraries to `~/lib/`.
+
+------------------------------------------------------------------------------------------
+### 1. Select random sets of UCE loci for analysis
+
+We'll select 5 sets of 50 random loci.
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_renalysis/phyluce
+mkdir ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset
+cd ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset
+mkdir subset1 subset2 subset3 subset4 subset5
+cd ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 50`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset1; done
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 50`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset2; done
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 50`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset3; done
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 50`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset4; done
+list=`ls -lh *.nexus | cut -d':' -f2 | cut -d' ' -f2 | shuf -n 50`; for i in $list; do cp $i ../mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset5; done
+```
+ 
+------------------------------------------------------------------------------------------
+### 2. Format input nexus files for locus subsets
+
+#### 1. Generate concatenated alignment nexus files for each subset
+
+```
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset1/ --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset1 --nexus --log-path .
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset2/ --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset2 --nexus --log-path .
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset3/ --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset3 --nexus --log-path .
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset4/ --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset4 --nexus --log-path .
+phyluce_align_concatenate_alignments --alignments ./4-datasets/all-rev1/mafft-gblocks-nexus-internal-trimmed-all-rev1-samples-incomplete-clean-95p-subset/subset5/ --output ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset5 --nexus --log-path .
+```
+
+#### 2. Format UCE labels
+
+```
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset1/hirundinidae-all-rev1-95-nexus-subset1.nexus
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset2/hirundinidae-all-rev1-95-nexus-subset2.nexus
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset3/hirundinidae-all-rev1-95-nexus-subset3.nexus
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset4/hirundinidae-all-rev1-95-nexus-subset4.nexus
+sed -i 's/uce-/uce_/g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset5/hirundinidae-all-rev1-95-nexus-subset5.nexus
+```
+
+#### 3. Remove single quotes and '.nexus' from partition character sets
+
+BEAUTi barfs on these and does not read in the nexus file if they are included.
+
+```
+sed -i "s/'//g" ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset1/hirundinidae-all-rev1-95-nexus-subset1.nexus
+sed -i "s/'//g" ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset2/hirundinidae-all-rev1-95-nexus-subset2.nexus
+sed -i "s/'//g" ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset3/hirundinidae-all-rev1-95-nexus-subset3.nexus
+sed -i "s/'//g" ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset4/hirundinidae-all-rev1-95-nexus-subset4.nexus
+sed -i "s/'//g" ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset5/hirundinidae-all-rev1-95-nexus-subset5.nexus
+```
+
+```
+sed -i 's/.nexus//g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset1/hirundinidae-all-rev1-95-nexus-subset1.nexus
+sed -i 's/.nexus//g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset2/hirundinidae-all-rev1-95-nexus-subset2.nexus
+sed -i 's/.nexus//g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset3/hirundinidae-all-rev1-95-nexus-subset3.nexus
+sed -i 's/.nexus//g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset4/hirundinidae-all-rev1-95-nexus-subset4.nexus
+sed -i 's/.nexus//g' ./5-input-alignments/all-rev1/hirundinidae-all-rev1-95-nexus-subset5/hirundinidae-all-rev1-95-nexus-subset5.nexus
+```
+
+------------------------------------------------------------------------------------------
+### 3. Prepare XML files in BEAUTi
+
+#### Edit nexus alignments to contain single partitions
+
+Do this manually based on the start of the first UCE partition and end of the last UCE partition.
+
+Also remove the 'charpartition combined' line. The charsets block at the end should look something like:
+```
+begin sets;
+charset uce = 1-48936;
+end;
+```
+
+#### Set parameters in BEAUTi
+
+Site model:
+* Gamma site model
+	* Substitution rate = 1
+	* Gamma category count = 4
+	* Shape = 1 (estimate)
+	* Proportion invariant = 0
+	* Substitution model = HKY
+		* Kappa = 2 (estimate)
+		* Frequencies = empirical
+		
+Clock model:
+* Optimized relaxed clock
+	* Mean clock rate = 1
+	
+Priors
+* Defaults
+* Add MRCA prior ('HDA' for Hirundo, Delichon, and Riparia)
+	* Set as monophyletic
+	* Include all taxa except for outgroups, Pseudochelidon, and Psalidoprocne
+	* Distribution = normal
+		* Mean = 9
+		* Sigma = 1.5
+		* Offset = 0
+* Add MRCA prior ('ANC' for all taxa)
+	* Set as monophyletic
+	* Include all outgroup and ingroup taxa
+	* Distribution = normal
+		* Mean = 22
+		* Sigma = 2.5
+		* Offset = 0
+		
+MCMC
+* Chain length = 10000000
+* Store every = 1000
+* Trace log every = 1000
+
+#### Get XML files into correct analysis directory on Terminator
+
+`/data3/hirundinidae_phylogeny/workflow_reanalysis/beast/ha95-rev1/`
+
+------------------------------------------------------------------------------------------
+### 4. Run BEAST analysis
+
+We'll need to export the location of the Beagle library files, installed above.
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/beast/ha95-rev1/
+export LD_LIBRARY_PATH=~/lib:$LD_LIBRARY_PATH
+nohup ../beast/bin/beast -threads 8 hirundinidae-all-rev1-95-nexus-subset1.xml > runlog.ha95-rev1-subset1.log &
+nohup ../beast/bin/beast -threads 8 hirundinidae-all-rev1-95-nexus-subset2.xml > runlog.ha95-rev1-subset2.log &
+nohup ../beast/bin/beast -threads 8 hirundinidae-all-rev1-95-nexus-subset3.xml > runlog.ha95-rev1-subset3.log &
+nohup ../beast/bin/beast -threads 8 hirundinidae-all-rev1-95-nexus-subset4.xml > runlog.ha95-rev1-subset4.log &
+nohup ../beast/bin/beast -threads 8 hirundinidae-all-rev1-95-nexus-subset5.xml > runlog.ha95-rev1-subset5.log &
+```
+
+## Part 10 - Historical Biogeography
+
+We'll use BioGeoBEARS to test and compare biogeographic models to estimate the historical biogeography across the Hirundinidae tree.
+
+The Bayesian time-calibrated phylogeny will be used as the topology for these analyses (pruned to n = 88 representative taxa).
+
+### Set up environment
+
+In Google Drive project folder
+```
+cd workflow_reanalysis/analysis
+mkdir biogeography
+cd biogeography
+mkdir data
+```
+
+### 1. Format input tree topology
+
+The time-calibrated tree was estimated using BEAST, with branch lengths in time (millions of years).
+
+Format taxon short names for pruned n = 88 dataset in `./hirundinidae-all-rev1-95-prune.short-taxon-names.txt`.
+
+Run `../../R/BioGeoBEARS_format_input_tree.R` to format input BEAST nexus tree to tree output with shortened taxon names.
+
+### 2. Format input geographic data
+
+The geographic data collected by Clare are in `swallow_data_species.xlsx`; copy it into `./data/`.
+
+Format `./data/swallow_geographic_data_8realms.xlsx` to configure input data.
+* This table contains rows for the 88 taxa, with presence/absence (1/0) for the 8 geographic realms used in the study.
+* The columns need to be ordered as follows:
+	* A = afrotropical
+	* B = paleartic
+	* C = oriental
+	* D = australian
+	* E = oceanian
+	* F = nearctic
+	* G = panamanian
+	* H = neotropical
+
+Then, format `/data/swallow_geographic_data_8realms.txt`; a simple tab-delimited text version of the table.
+
+From this, format an input geographic data phylip file for BioGeoBEARs, `./data/swallow_geographic_data_8realms.phy`.
+
+The first 7 lines:
+```
+88	8	(A B C D E F G H)
+Alopochelidon_fucata	00000001
+Atticora_fasciata	00000001
+Atticora_pileata	00000010
+Atticora_tibialis	00000011
+Cecropis_abyssinica	10000000
+Cecropis_cucullata	10000000
+```
+
+### 3. Format manual dispersal multiplier file
+
+This file (`./data/swallow_manual_dispersal_multipliers.txt`) specifies how dispersal from/to different biogeographic realms can occur in the tested models.
+
+The organization of this file is why the realm columns in the above files need to be in a particular order.
+
+File contents:
+```
+A	B	C	D	E	F	G	H
+1	1	1	0	0	0	0	0
+1	1	1	1	1	1	0	0
+1	1	1	1	1	0	0	0
+0	1	1	1	1	0	0	0
+0	1	1	1	1	0	0	0
+0	1	0	0	0	1	1	1
+0	0	0	0	0	1	1	1
+0	0	0	0	0	1	1	1
+
+END
+```
+
+### 4. BioGeoBEARS analysis
+
+Run `../../R/BioGeoBEARS_constrained_dispersal.R` to import tree/geographic data, specify/run models, then perform model comparisons.
+
+Running all 6 models will take ~1 hour.
+
+The runs and data are saved to .Rdata files in the working directory, and the model comparison results are saved to various files:
+```
+Hirundinidae_constrained_dispersal_restable_AIC_rellike_formatted.txt
+Hirundinidae_constrained_dispersal_restable_AIC_rellike.txt
+Hirundinidae_constrained_dispersal_restable_AICc_rellike_formatted.txt
+Hirundinidae_constrained_dispersal_restable_AICc_rellike.txt
+Hirundinidae_constrained_dispersal_restable.txt
+Hirundinidae_constrained_dispersal_teststable.txt
+```
+
+### 5. Plotting BioGeoBEARs results
+
+Run `../../R/BioGeoBEARS_results_figure.R` to plot the results.
+
+The script will point you to run `../../R/BioGeoBEARS_get_MLstates.R` to gather information for plotting ML states onto the tree nodes.
