@@ -344,4 +344,215 @@ Outputs are in:
 ./3-uce-search-results/probe.matches.sqlite
 ```
 
+## Part 3 - Extract UCE loci for skins; generate datasets with tissue samples
 
+We have matched the corrected consensus contigs for the 21 skin samples to the 5k UCE probes, together with sequences for the outgroups and ingroup tissue samples.
+
+We'll now extract UCE sequences and generate locus datasets across the combined set of samples.
+
+We'll run several phyluce commands in this part of the workflow to extract/format UCE loci.
+
+------------------------------------------------------------------------------------------
+### Input data locations
+
+The contigs uniquely matched to UCE probes are in:
+```
+/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/3-uce-search-results
+```
+
+------------------------------------------------------------------------------------------
+### Set up environment
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+mkdir 4-datasets
+cd 4-datasets
+mkdir all
+```
+
+------------------------------------------------------------------------------------------
+### 1. Run `phyluce_assembly_get_match_counts` on combined dataset
+
+#### Format dataset configuration file
+
+```
+/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/4-datasets.config
+```
+
+Note: some (13) of the samples have repeated Country, Locality names (e.g., Cecropis_daurica_China_China_KU_99748). Clare addressed this in her '7d-rename assemblies' document, but I'll proceed with the names as is.
+
+#### Format taxon-locus configuration file
+
+```
+/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/4-datasets/all/all-samples-incomplete.config
+
+```
+
+#### Run analysis
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+conda activate phyluce
+phyluce_assembly_get_match_counts --locus-db ./3-uce-search-results/probe.matches.sqlite --taxon-list-config ./4-datasets.config --taxon-group 'all' --incomplete-matrix --output ./4-datasets/all/all-samples-incomplete.config --log-path .
+```
+
+------------------------------------------------------------------------------------------
+### 2. Run `phyluce_assembly_get_fastas_from_match_counts` to format .fasta files from the matched UCE contigs
+
+This command references outputs from the last few steps, including the assembled/corrected contigs, search matches, etc.
+
+```
+phyluce_assembly_get_fastas_from_match_counts --contigs ./2-correction/consensus-rename/ --locus-db ./3-uce-search-results/probe.matches.sqlite --match-count-output ./4-datasets/all/all-samples-incomplete.config --output ./4-datasets/all/all-samples-incomplete.fasta --incomplete-matrix ./4-datasets/all/all-samples-incomplete.incomplete --log-path .
+```
+
+------------------------------------------------------------------------------------------
+### 3. Run `phyluce_assembly_explode_get_fastas_file` to generate taxon-specific fasta files
+
+This will produce a single fasta file for each taxon, including all of the UCEs for the sample.
+
+```
+phyluce_assembly_explode_get_fastas_file --input ./4-datasets/all/all-samples-incomplete.fasta --output ./4-datasets/all/exploded-fastas-all-samples-incomplete --by-taxon
+```
+
+------------------------------------------------------------------------------------------
+### 4. Run `phyluce_assembly_get_fasta_lengths` to generate summary statistics on extracted UCE loci
+
+```
+for seq in ./4-datasets/all/exploded-fastas-all-samples-incomplete/*.fasta; do phyluce_assembly_get_fasta_lengths --input $seq --csv; done > ./4-datasets/all/all-samples-incomplete-stats.txt
+```
+
+## Part 4 - Align UCE loci
+
+We've extracted UCE sequences for the corrected skin samples and the outgroup/tissue samples in the previous steps.
+
+Now we'll align and format the data for analysis.
+
+------------------------------------------------------------------------------------------
+### Input data
+
+Fasta sequences for the all-taxon dataset are in `/data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/4-datasets/all/`
+
+------------------------------------------------------------------------------------------
+### 1. Use phyluce to run MAFFT alignment on input data
+
+Note: we'll specify `--ambiguous` to not remove sequences with ambiguous bases (i.e., introduced in the correction step for skin samples).
+
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+conda activate phyluce
+phyluce_align_seqcap_align --input ./4-datasets/all/all-samples-incomplete.fasta --output ./4-datasets/all/mafft-fasta-untrimmed-all-samples-incomplete --taxa 122 --aligner mafft --cores 24 --incomplete-matrix --output-format fasta --no-trim --ambiguous --log-path .
+```
+
+Note: loci uce-2821, uce-3732, uce-4427, uce-7305, uce-2241, uce-5887, uce-4726, uce-5673 dropped due to too few taxa (n < 3).
+
+------------------------------------------------------------------------------------------
+### 2. Rename sequences in alignments
+
+We need the sequence headers to be compatible with Gblocks, so will shorten to just the museum identifier.
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/4-datasets/all
+cp -r mafft-fasta-untrimmed-all-samples-incomplete/ mafft-fasta-untrimmed-all-samples-incomplete-SHORTNAMES
+```
+
+Format original and matched short name files.
+```
+all_originalNames.txt
+all_shortNames.txt
+```
+
+Note: the original names differ slightly for some samples than Clare's file, because the small set of samples have the double locality, country parts of the name. The details of the conversion are in the 'Hirundinidae_taxon_name_conversion.xlsx' file.
+
+Run the conversion, then remove the temporary fasta files.
+```
+for file in mafft-fasta-untrimmed-all-samples-incomplete-SHORTNAMES/*.fasta; do echo $file >> ./rename_fasta_all_samples_incomplete.log; for i in {1..122}; do sed -i.temp.fasta "s/$(head -$i all_originalNames.txt | tail -1)/$(head -$i all_shortNames.txt | tail -1)/" $file; done; done
+rm ./mafft-fasta-untrimmed-all-samples-incomplete-SHORTNAMES/*.temp.fasta
+
+```
+
+------------------------------------------------------------------------------------------
+### 3. Run `phyluce_align_get_gblocks_trimmed_alignments_from_untrimmed` to trim alignments
+
+This calls Gblocks to trim alignments based on several input parameters.
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+mkdir temp_log
+phyluce_align_get_gblocks_trimmed_alignments_from_untrimmed --alignments ./4-datasets/all/mafft-fasta-untrimmed-all-samples-incomplete-SHORTNAMES --output ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-SHORTNAMES --b2 0.65 --b4 8 --input-format fasta --output-format nexus --cores 24 --log ./temp_log
+```
+
+------------------------------------------------------------------------------------------
+### 4. Rename sequences in aligned/trimmed nexus files with original names
+
+```
+cd ./4-datasets/all/
+cp -r mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-SHORTNAMES mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete
+
+for file in mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/*.nexus;
+	do echo $file >> ./rename_nexus_all_samples_incomplete.log;
+	for i in {1..122};
+		do sed -i.temp.nexus "s/$(head -$i all_shortNames.txt | tail -1)/$(head -$i all_originalNames.txt | tail -1)/" $file;
+	done;
+done
+
+rm ./mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/*.temp.nexus
+```
+
+------------------------------------------------------------------------------------------
+### 5. Fix issue with weird double name headers
+
+For some reason, the steps above produced a subset of nexus files with doubled names.
+
+E.g., 'Alopochelidon_fucata_Uruguay_CUMV_50652' and 'Alopochelidon_fucata_Uruguay_Alopochelidon_fucata_Uruguay_CUMV_50652'.
+
+This presents a big problem later on, when concatenating the sequences together, as the two different versions are seen as two separate taxa.
+
+### Format list of double names to search nexus files with
+
+```
+all_doubleNames.txt
+```
+
+#### Do grep search of all nexus files in `./mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/`
+
+Do search and output to temporary file:
+```
+for i in `cat all_doubleNames.txt`; do for nex in ./mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/*.nexus; do grep $i $nex; done | cut -d"'" -f2 | cut -d'_' -f1 | uniq >> all_doubleNames.nexus.tmp.txt; done
+```
+
+Get unique nexus file hits:
+```
+awk '{print $1}' all_doubleNames.nexus.tmp.txt | sort | uniq > all_doubleNames.nexus.txt
+```
+
+#### Run sed replace script on nexus files with messed up sample names
+
+Wrote `fixNexusDoubleNames.sh` to call list above and replace with correct names.
+```
+sh fixNexusDoubleNames.sh
+```
+
+Note: this relies on the input list being `./all_doubleNames.nexus.txt` and the target directory `./mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/`.
+
+#### Check that the script worked
+
+There should not be any of the double names in any of the nexus files.
+
+```
+for nex in ./mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete/*.nexus; do grep 'Alopochelidon_fucata_Uruguay_Alopochelidon_fucata_Uruguay_CUMV_50652' $nex; done | cut -d"'" -f2 | cut -d'_' -f1 | uniq
+```
+
+This seems to have done the job.
+
+------------------------------------------------------------------------------------------
+### 6. Get alignment summary statistics
+
+Run `phyluce_align_get_align_summary_data` to summarize stats on informative sites, lengths, missingness, etc.
+```
+cd /data3/hirundinidae_phylogeny/workflow_reanalysis/phyluce/
+phyluce_align_get_align_summary_data --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete --cores 24 --log-path ./temp_log
+```
+
+------------------------------------------------------------------------------------------
+### 7. Remove locus names from nexus file header lines
+
+```
+phyluce_align_remove_locus_name_from_files --alignments ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete --output ./4-datasets/all/mafft-gblocks-nexus-internal-trimmed-all-samples-incomplete-clean --cores 24 --log-path ./temp_log
+```
