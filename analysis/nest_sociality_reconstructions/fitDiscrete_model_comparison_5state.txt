@@ -1,0 +1,4 @@
+model	hypothesis	k	lnL	AICc	deltaAICc	Akaike_weight
+1	6	open	4	-35.572	79.632	0	0.587
+3	8	retort	4	-36.485	81.458	1.827	0.235
+2	7	enclosed	4	-36.763	82.014	2.383	0.178

@@ -1,0 +1,6 @@
+model	k	lnL	AICc	deltaAICc	Akaike_weight
+5	Model5	3	-21.454	49.198	0	0.67
+4	Model4	4	-21.454	51.396	2.199	0.223
+1	Model1.ER	1	-25.959	53.965	4.767	0.062
+3	Model3.ARD	6	-21.454	55.959	6.761	0.023
+2	Model2.SYM	3	-24.856	56.002	6.804	0.022

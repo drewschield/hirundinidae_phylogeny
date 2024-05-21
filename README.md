@@ -4,7 +4,9 @@
 
 This repository contains details on the data processing and analysis steps used to estimate the swallow family phylogeny, divergence times, historical biogeography, and ancestral state reconstructions for sociality and nesting type. This workflow is a companion to the methods described in Schield & Brown et al. (_in Press_).
 
-Note: this repository assumes a specific file organization. For reproducibility, your environment may vary and will need to be adjusted accordingly.
+Much of the code and scripts here were adopted from elements of co-author Clare Brown's notes (thank you, Clare!).
+
+Note: this repository assumes a specific file organization. Your environment may vary and will need to be adjusted accordingly.
 
 ## Part 0 - General information and installation of phyluce
 
